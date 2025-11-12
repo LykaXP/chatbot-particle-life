@@ -2,7 +2,7 @@
 const numTypes = 6;
 const colorStep = 360 / numTypes;
 const numParticles = 500;
-const canvasWidth = 1200;
+const canvasWidth = 1150;
 const canvasHeight = 600;
 
 // Global variables

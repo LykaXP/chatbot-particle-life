@@ -3,27 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Particle Life Simulation</title>
+    <title>Particle Life & Chatbot</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chatbot-style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Particle Life Simulation</h1>
-        <div class="controls">
-            <button id="randomize">Randomize Parameters (Press R)</button>
-            <button id="pause">Pause/Resume (Space)</button>
-            <button id="fullscreen">Fullscreen (Press F)</button>
-        </div>
-        <canvas id="canvas"></canvas>
-        <div class="info">
-            <h3>Instructions:</h3>
-            <p>Press <strong>R</strong> or click the button to randomize interaction rules</p>
-            <p>Press <strong>Space</strong> to pause/resume</p>
-            <p>Press <strong>F</strong> to toggle fullscreen mode</p>
-            <p style="margin-top: 15px;"><a href="chatbot.html" style="color: #007bff; text-decoration: none; font-weight: 600;">🤖 Try the Personality Chatbot →</a></p>
+    <div class="page-container">
+        <div class="side-by-side-layout">
+            <!-- Particle Life Section -->
+            <div class="container simulation-section">
+                <h1>Particle Life Simulation</h1>
+                <div class="controls">
+                    <button id="randomize">Randomize Parameters (Press R)</button>
+                    <button id="pause">Pause/Resume (Space)</button>
+                    <button id="fullscreen">Fullscreen (Press F)</button>
+                </div>
+                <canvas id="canvas"></canvas>
+                <div class="info">
+                    <h3>Instructions:</h3>
+                    <p>Press <strong>R</strong> or click the button to randomize interaction rules</p>
+                    <p>Press <strong>Space</strong> to pause/resume</p>
+                    <p>Press <strong>F</strong> to toggle fullscreen mode</p>
+                </div>
+            </div>
+
+            <!-- Chatbot Section -->
+            <div class="container chatbot-section">
+                <header style="background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 12px 12px 0 0; margin: -30px -30px 20px -30px;">
+                    <h1 style="margin: 0; font-size: 1.5em;">Personality Chatbot</h1>
+                    <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 0.85em;">Upload conversations and chat with AI</p>
+                </header>
+
+                <div class="main-content">
+                    <!-- Chat Interface -->
+                    <div class="right-panel">
+                        <div class="chat-header">
+                            <h2>Chat</h2>
+                            <div class="chat-status" id="chatStatus">Not Ready</div>
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="welcome-message">
+                                <p>👋 Welcome! Upload conversation files and configure the chatbot to get started.</p>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-container">
+                            <textarea id="chatInput" placeholder="Type your message..." rows="2" disabled></textarea>
+                            <button id="sendBtn" disabled>Send</button>
+                        </div>
+
+                        <button class="btn-clear" id="clearBtn">Clear Chat</button>
+                    </div>
+
+                    <!-- Upload & Configuration -->
+                    <div class="left-panel">
+                        <div class="upload-section">
+                            <h2>Upload Conversations</h2>
+                            <div class="upload-area" id="uploadArea">
+                                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                                <p>Drop conversation files here or click to upload</p>
+                                <p style="font-size: 0.85em; margin-top: 5px; color: #999;">Upload text files with conversation messages</p>
+                                <input type="file" id="fileInput" accept=".txt,.json" multiple hidden>
+                            </div>
+                            <button class="btn-secondary" id="uploadBtn">Choose Files</button>
+                        </div>
+
+                        <div class="config-section">
+                            <h2>Configuration</h2>
+                            
+                            <div class="form-group">
+                                <label for="apiKey">Gemini API Key:</label>
+                                <input type="password" id="apiKey" placeholder="Enter your Gemini API key">
+                                <small>Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+                            </div>
+
+                            <button class="btn-primary" id="analyzeBtn" disabled>Load Personality</button>
+                        </div>
+
+                        <div class="status-section" id="statusSection">
+                            <h3>Status</h3>
+                            <div id="statusContent">
+                                <p>No files uploaded yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
     <script src="particle.js"></script>
     <script src="main.js"></script>
+    <script src="chatbot.js"></script>
 </body>
 </html>
