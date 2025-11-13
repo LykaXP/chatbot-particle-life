@@ -269,6 +269,10 @@ async function sendMessage() {
             role: 'model',
             parts: [{ text: response }]
         });
+
+        // Analyze emotion and update particle simulation
+        await analyzeEmotionAndUpdateParticles(response);
+        
     } catch (error) {
         addSystemMessage(`Error: ${error.message}`);
         console.error('API Error:', error);
@@ -277,6 +281,45 @@ async function sendMessage() {
     chatInput.disabled = false;
     sendBtn.disabled = false;
     chatInput.focus();
+}
+
+async function analyzeEmotionAndUpdateParticles(responseText) {
+    try {
+        const emotionPrompt = `Analyze the emotional tone of this message and respond with ONLY a JSON object (no markdown, no extra text) in this exact format:
+{"emotion": "happy/sad/angry/excited/calm/anxious/neutral", "intensity": 0.0-1.0}
+
+Message: "${responseText}"
+
+Respond with only the JSON object, nothing else.`;
+
+        const emotionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: emotionPrompt }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 100 }
+            })
+        });
+
+        if (emotionResponse.ok) {
+            const emotionData = await emotionResponse.json();
+            let emotionJson = emotionData.candidates[0].content.parts[0].text.trim();
+            
+            // Remove markdown code blocks if present
+            emotionJson = emotionJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            
+            const emotion = JSON.parse(emotionJson);
+            
+            // Update particle simulation based on emotion
+            if (typeof updateParticleEmotion === 'function') {
+                updateParticleEmotion(emotion.emotion, emotion.intensity);
+            }
+            
+            console.log('Emotion detected:', emotion);
+        }
+    } catch (error) {
+        console.error('Error analyzing emotion:', error);
+    }
 }
 
 async function callGeminiAPI(message) {

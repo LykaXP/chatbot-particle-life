@@ -1,6 +1,6 @@
 // Configuration
 const numTypes = 6;
-const colorStep = 360 / numTypes;
+let colorStep = 360 / numTypes;
 const numParticles = 500;
 const canvasWidth = 1150;
 const canvasHeight = 600;
@@ -13,6 +13,12 @@ let minDistances = [];
 let radii = [];
 let isPaused = false;
 let animationId;
+
+// Emotion state
+let currentEmotion = { emotion: 'calm', intensity: 0.5 };
+let emotionColorPalette = [];
+let emotionFrictionModifier = 1.0;
+let emotionForceModifier = 1.0;
 
 // Initialize
 function setup() {
@@ -32,6 +38,10 @@ function setup() {
     radii = Array(numTypes).fill(0).map(() => Array(numTypes).fill(0));
 
     setParameters();
+
+    // Set default emotion to calm
+    updateParticleEmotion('anxious', 1.0);
+
     draw();
 
     // Event listeners
@@ -60,8 +70,8 @@ function draw() {
 
         // Update and display particles
         for (let p of swarm) {
-            p.update(swarm, forces, minDistances, radii);
-            p.display(ctx, colorStep);
+            p.update(swarm, forces, minDistances, radii, emotionForceModifier, emotionFrictionModifier);
+            p.display(ctx, emotionColorPalette);
         }
     }
 
@@ -121,6 +131,110 @@ function toggleFullscreen() {
     } else {
         document.exitFullscreen();
     }
+}
+
+// Emotion-based particle control
+function updateParticleEmotion(emotion, intensity) {
+    currentEmotion = { emotion, intensity };
+    
+    // Emotion color palettes - each emotion has multiple nuanced colors
+    const emotionPalettes = {
+        'happy': [
+            '#FFD700',  // Pure vibrant yellow
+            '#FFB84D',  // Bright orange
+            '#B3D633',  // Lime green
+            '#FFE680',  // Light golden
+            '#FF9933',  // Deep orange
+            '#99AA33'   // Dark yellow-green
+        ],
+        'excited': [
+            '#FF0000',  // Pure bright red
+            '#FF4D9E',  // Vibrant hot pink
+            '#FF6633',  // Bright orange
+            '#B30047',  // Deep magenta
+            '#FFB3A3',  // Light coral
+            '#CC0066'   // Dark pink
+        ],
+        'sad': [
+            '#0D3D66',  // Deep navy blue
+            '#4DB8E6',  // Bright cyan-blue
+            '#8C99E6',  // Light periwinkle
+            '#1A4D80',  // Dark blue
+            '#A3A3E6',  // Pale lavender-blue
+            '#1A4DCC'   // Medium royal blue
+        ],
+        'calm': [
+            '#26D9D9',  // Pure bright cyan
+            '#4DD9BF',  // Light teal
+            '#1A7A80',  // Deep turquoise
+            '#80FFEB',  // Very light aqua
+            '#0D5966',  // Dark cyan
+            '#33BFB3'   // Medium turquoise
+        ],
+        'angry': [
+            '#ffd986ff',  // Deep blood red
+            '#ff6200ff',  // Bright orange-red
+            '#730000',  // Very dark crimson
+            '#F20D0D',  // Medium red
+            '#ff772eff',  // Light burnt orange
+            '#ff9900ff'   // Dark ruby
+        ],
+        'anxious': [
+            '#B300FF',  // Pure vibrant purple
+            '#4D0D73',  // Very dark indigo
+            '#E680FF',  // Light magenta
+            '#7300CC',  // Deep violet
+            '#F2C2FF',  // Pale pink-purple
+            '#8C1ACC'   // Medium purple
+        ],
+        'neutral': [
+            '#CCCCCC',  // Very light gray
+            '#4D4D4D',  // Very dark gray
+            '#999999',  // Medium-light gray
+            '#666666',  // Medium-dark gray
+            '#B3B3B3',  // Light gray
+            '#808080'   // True middle gray
+        ]
+    };
+    
+    // Get the palette for the current emotion
+    let basePalette = emotionPalettes[emotion] || emotionPalettes['neutral'];
+    
+    // Use palette colors directly without intensity modification
+    emotionColorPalette = basePalette;
+    
+    // Emotion behavior mappings
+    switch(emotion) {
+        case 'happy':
+            emotionForceModifier = 1.0 + (intensity * 0.3); // More attraction
+            emotionFrictionModifier = 0.9 - (intensity * 0.1); // More movement
+            break;
+        case 'excited':
+            emotionForceModifier = 1.2 + (intensity * 0.5); // Strong forces
+            emotionFrictionModifier = 0.7 - (intensity * 0.15); // Very energetic
+            break;
+        case 'sad':
+            emotionForceModifier = 0.8 - (intensity * 0.3); // Weaker forces
+            emotionFrictionModifier = 0.95 + (intensity * 0.04); // Slower movement
+            break;
+        case 'calm':
+            emotionForceModifier = 0.9; // Gentle forces
+            emotionFrictionModifier = 0.92; // Slow, smooth
+            break;
+        case 'angry':
+            emotionForceModifier = 1.5 + (intensity * 0.5); // Aggressive forces
+            emotionFrictionModifier = 0.75 - (intensity * 0.1); // Chaotic movement
+            break;
+        case 'anxious':
+            emotionForceModifier = 1.0 + (intensity * 0.4 * Math.sin(Date.now() / 200)); // Fluctuating
+            emotionFrictionModifier = 0.85 - (intensity * 0.1); // Jittery
+            break;
+        default:
+            emotionForceModifier = 1.0;
+            emotionFrictionModifier = 1.0;
+    }
+    
+    console.log(`🎨 Emotion: ${emotion} (${intensity.toFixed(2)}) - Palette: ${emotionColorPalette.length} colors - Force: ${emotionForceModifier.toFixed(2)}x - Friction: ${emotionFrictionModifier.toFixed(2)}x`);
 }
 
 // Start the simulation when page loads
