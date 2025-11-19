@@ -235,6 +235,11 @@ Remember: You are ${botName}, acting like ${PERSON_NAME}. Start chatting!`;
 
     addSystemMessage(`✨ ${botName} is ready!`);
 
+    // Start the particle simulation
+    if (typeof startSimulation === 'function') {
+        startSimulation();
+    }
+
     analyzeBtn.disabled = false;
     analyzeBtn.textContent = 'Reload Personality';
     updateStatus();

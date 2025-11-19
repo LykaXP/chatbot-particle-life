@@ -13,6 +13,7 @@ let minDistances = [];
 let radii = [];
 let isPaused = false;
 let animationId;
+let simulationStarted = false;
 
 // Emotion state
 let currentEmotion = { emotion: 'calm', intensity: 0.5 };
@@ -42,14 +43,21 @@ function setup() {
     // Set default emotion to calm
     updateParticleEmotion('anxious', 1.0);
 
-    draw();
-
     // Event listeners
     document.getElementById('randomize').addEventListener('click', setParameters);
     document.getElementById('pause').addEventListener('click', togglePause);
     document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
     
     document.addEventListener('keydown', (e) => {
+        // Don't trigger shortcuts when typing in input fields or textareas
+        const isTyping = e.target.tagName === 'INPUT' || 
+                        e.target.tagName === 'TEXTAREA' || 
+                        e.target.isContentEditable;
+        
+        if (isTyping) {
+            return; // Ignore keyboard shortcuts when typing
+        }
+        
         if (e.key.toLowerCase() === 'r') {
             setParameters();
         } else if (e.key === ' ') {
@@ -60,6 +68,15 @@ function setup() {
             toggleFullscreen();
         }
     });
+}
+
+// Function to start the simulation
+function startSimulation() {
+    if (!simulationStarted) {
+        simulationStarted = true;
+        draw();
+        console.log('🎬 Particle simulation started!');
+    }
 }
 
 function draw() {
@@ -120,7 +137,7 @@ function printParameters() {
 function togglePause() {
     isPaused = !isPaused;
     const button = document.getElementById('pause');
-    button.textContent = isPaused ? 'Resume (Space)' : 'Pause/Resume (Space)';
+    button.textContent = isPaused ? 'Resume (Space)' : 'Pause (Space)';
 }
 
 function toggleFullscreen() {
@@ -237,5 +254,5 @@ function updateParticleEmotion(emotion, intensity) {
     console.log(`🎨 Emotion: ${emotion} (${intensity.toFixed(2)}) - Palette: ${emotionColorPalette.length} colors - Force: ${emotionForceModifier.toFixed(2)}x - Friction: ${emotionFrictionModifier.toFixed(2)}x`);
 }
 
-// Start the simulation when page loads
+// Initialize canvas and particles when page loads, but don't start animation
 window.addEventListener('load', setup);
