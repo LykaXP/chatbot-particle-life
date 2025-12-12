@@ -1,7 +1,6 @@
 // Global state
 let conversationData = [];
 let apiKey = '';
-let gladiaApiKey = '';
 let chatHistory = [];
 const PERSON_NAME = 'Angélique';
 let botName = '';
@@ -11,7 +10,6 @@ const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
 const uploadBtn = document.getElementById('uploadBtn');
 const apiKeyInput = document.getElementById('apiKey');
-const gladiaApiKeyInput = document.getElementById('gladiaApiKey');
 const analyzeBtn = document.getElementById('analyzeBtn');
 const statusContent = document.getElementById('statusContent');
 const chatMessages = document.getElementById('chatMessages');
@@ -53,11 +51,6 @@ if (langBtn) langBtn.addEventListener('click', toggleLanguage);
 clearBtn.addEventListener('click', clearChat);
 apiKeyInput.addEventListener('input', () => {
     apiKey = apiKeyInput.value.trim();
-    updateUI();
-});
-
-gladiaApiKeyInput.addEventListener('input', () => {
-    gladiaApiKey = gladiaApiKeyInput.value.trim();
     updateUI();
 });
 
@@ -671,177 +664,6 @@ async function processTranscription(transcription) {
     } catch (error) {
         console.error('Error processing audio:', error);
         addSystemMessage(`❌ Error processing audio: ${error.message}`);
-    }
-}
-
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
-async function transcribeWithGladia(audioBlob) {
-    try {
-        const GLADIA_API_KEY = gladiaApiKey;
-        
-        if (!GLADIA_API_KEY) {
-            throw new Error('Gladia API key is required');
-        }
-        
-        // Convert webm to WAV for better compatibility
-        const wavBlob = await convertToWav(audioBlob);
-        
-        // Create FormData with the audio file
-        const formData = new FormData();
-        formData.append('audio', wavBlob, 'recording.wav');
-        formData.append('language_behaviour', 'automatic single language');
-        
-        // Use Gladia's transcription endpoint
-        const response = await fetch('https://api.gladia.io/v2/transcription/', {
-            method: 'POST',
-            headers: {
-                'x-gladia-key': GLADIA_API_KEY
-            },
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Gladia API error:', errorData);
-            throw new Error(`Gladia API error: ${errorData.message || response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('Gladia response:', data);
-        
-        // Check if we got a result_url (async processing)
-        if (data.result_url) {
-            // Poll for the result
-            const resultUrl = data.result_url;
-            let attempts = 0;
-            const maxAttempts = 30;
-            
-            while (attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                const resultResponse = await fetch(resultUrl, {
-                    headers: {
-                        'x-gladia-key': GLADIA_API_KEY
-                    }
-                });
-                
-                if (resultResponse.ok) {
-                    const result = await resultResponse.json();
-                    console.log('Gladia result:', result);
-                    
-                    if (result.status === 'done') {
-                        const transcription = result.result?.transcription?.full_transcript || 
-                                            result.result?.transcription?.success ||
-                                            '[Could not transcribe]';
-                        return transcription;
-                    } else if (result.status === 'error') {
-                        throw new Error('Transcription failed');
-                    }
-                }
-                
-                attempts++;
-            }
-            
-            throw new Error('Transcription timeout');
-        }
-        
-        // If we got immediate results
-        const transcription = data.prediction?.[0]?.transcription || 
-                            data.transcription?.full_transcript ||
-                            data.transcription?.text ||
-                            data.result?.transcription?.full_transcript ||
-                            '[Could not transcribe]';
-        
-        return transcription;
-        
-    } catch (error) {
-        console.error('Gladia transcription error:', error);
-        return '[Transcription failed: ' + error.message + ']';
-    }
-}
-
-async function convertToWav(blob) {
-    return new Promise((resolve, reject) => {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const fileReader = new FileReader();
-        
-        fileReader.onload = async function(e) {
-            try {
-                const audioBuffer = await audioContext.decodeAudioData(e.target.result);
-                
-                // Convert to WAV
-                const wavBuffer = audioBufferToWav(audioBuffer);
-                const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-                
-                resolve(wavBlob);
-            } catch (error) {
-                reject(error);
-            }
-        };
-        
-        fileReader.onerror = reject;
-        fileReader.readAsArrayBuffer(blob);
-    });
-}
-
-function audioBufferToWav(buffer) {
-    const length = buffer.length * buffer.numberOfChannels * 2 + 44;
-    const arrayBuffer = new ArrayBuffer(length);
-    const view = new DataView(arrayBuffer);
-    const channels = [];
-    let offset = 0;
-    let pos = 0;
-    
-    // Write WAV header
-    setUint32(0x46464952); // "RIFF"
-    setUint32(length - 8); // file length - 8
-    setUint32(0x45564157); // "WAVE"
-    
-    setUint32(0x20746d66); // "fmt " chunk
-    setUint32(16); // length = 16
-    setUint16(1); // PCM (uncompressed)
-    setUint16(buffer.numberOfChannels);
-    setUint32(buffer.sampleRate);
-    setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels); // avg. bytes/sec
-    setUint16(buffer.numberOfChannels * 2); // block-align
-    setUint16(16); // 16-bit
-    
-    setUint32(0x61746164); // "data" - chunk
-    setUint32(length - pos - 4); // chunk length
-    
-    // Write interleaved data
-    for (let i = 0; i < buffer.numberOfChannels; i++) {
-        channels.push(buffer.getChannelData(i));
-    }
-    
-    while (pos < length) {
-        for (let i = 0; i < buffer.numberOfChannels; i++) {
-            let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-            view.setInt16(pos, sample, true);
-            pos += 2;
-        }
-        offset++;
-    }
-    
-    return arrayBuffer;
-    
-    function setUint16(data) {
-        view.setUint16(pos, data, true);
-        pos += 2;
-    }
-    
-    function setUint32(data) {
-        view.setUint32(pos, data, true);
-        pos += 4;
     }
 }
 
