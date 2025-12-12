@@ -223,26 +223,71 @@ async function sendBotInitiatedMessage() {
     if (!apiKey || chatHistory.length < 2) return;
     
     try {
-        // Randomly decide whether to comment on particle simulation (40% chance)
-        const shouldCommentOnParticles = Math.random() < 0.4;
+        // Analyze chat history context
+        const recentMessages = chatHistory.slice(-6); // Last 6 messages (excluding system prompt)
+        const lastMessage = chatHistory[chatHistory.length - 1];
+        const secondLastMessage = chatHistory.length > 2 ? chatHistory[chatHistory.length - 2] : null;
+        
+        // Check if user has responded to bot's last message
+        const waitingForResponse = lastMessage.role === 'model';
+        
+        // Count consecutive bot messages (shouldn't happen normally, but check anyway)
+        let consecutiveBotMessages = 0;
+        for (let i = chatHistory.length - 1; i >= 2; i--) {
+            if (chatHistory[i].role === 'model') {
+                consecutiveBotMessages++;
+            } else {
+                break;
+            }
+        }
+        
+        // Build conversation context summary
+        let conversationContext = '';
+        if (recentMessages.length > 2) {
+            const recentExchange = recentMessages.slice(2).map(msg => {
+                const role = msg.role === 'user' ? 'User' : 'You';
+                const text = msg.parts[0].text.substring(0, 100); // Truncate long messages
+                return `${role}: "${text}"`;
+            }).join('\n');
+            conversationContext = `\n\nRecent conversation:\n${recentExchange}`;
+        }
+        
+        // Randomly decide whether to comment on particle simulation (15% chance, but lower if waiting for response)
+        const particleChance = waitingForResponse ? 0.08 : 0.15;
+        const shouldCommentOnParticles = Math.random() < particleChance;
         
         let initiativePrompt;
         
-        if (shouldCommentOnParticles) {
-            // Get current particle state if available
-            let particleContext = '';
+        if (waitingForResponse) {
+            // Bot is waiting for user's response - be more thoughtful
+            const lastBotMessage = lastMessage.parts[0].text.substring(0, 150);
             
-            // Try to get the current emotion state from particle simulation
-            if (typeof window.currentParticleEmotion !== 'undefined' && window.currentParticleEmotion) {
-                particleContext = `The particle simulation is currently showing a "${window.currentParticleEmotion}" emotion with intensity ${window.currentParticleIntensity || 0.5}.`;
+            if (shouldCommentOnParticles) {
+                let particleContext = '';
+                if (typeof window.currentParticleEmotion !== 'undefined' && window.currentParticleEmotion) {
+                    particleContext = `Your particles (which represent your mood) are currently showing a "${window.currentParticleEmotion}" emotion with intensity ${window.currentParticleIntensity || 0.5}.`;
+                } else {
+                    particleContext = 'Your particles (which represent your mood) are moving around with colorful energy.';
+                }
+                
+                initiativePrompt = `You said: "${lastBotMessage}" but the user hasn't responded yet. ${particleContext} You can either: 1) Comment on how your particles/mood look or feel right now, 2) Follow up on your previous message naturally, or 3) Change the topic if you think they might not be interested. Be natural and don't be pushy. Remember: the particles are YOUR emotional state visualized.${conversationContext}`;
             } else {
-                particleContext = 'The particle simulation is running with colorful particles moving around.';
+                initiativePrompt = `You said: "${lastBotMessage}" but the user hasn't responded yet. You can either: 1) Follow up with a related thought, 2) Gently change the topic, or 3) Share something else on your mind. Be natural, conversational, and don't pressure them to respond.${conversationContext}`;
             }
-            
-            initiativePrompt = `${particleContext} Comment on what you see in the particle simulation or relate it to how you're feeling. Be creative and natural, like you're genuinely observing and reacting to the visual display.`;
         } else {
-            // Regular conversation starter
-            initiativePrompt = "Start a new conversation topic or share a thought. Be natural and spontaneous, like you just thought of something interesting to say.";
+            // Normal flow - user has responded or it's a fresh conversation
+            if (shouldCommentOnParticles) {
+                let particleContext = '';
+                if (typeof window.currentParticleEmotion !== 'undefined' && window.currentParticleEmotion) {
+                    particleContext = `Your particles (which represent your mood and are part of you) are currently showing a "${window.currentParticleEmotion}" emotion with intensity ${window.currentParticleIntensity || 0.5}.`;
+                } else {
+                    particleContext = 'Your particles (which represent your mood and are part of you) are moving around with colorful energy.';
+                }
+                
+                initiativePrompt = `${particleContext} Comment on how your particles look/feel, or relate your current mood (shown by your particles) to the conversation. The particles are YOUR emotional visualization - a part of you. Be creative and natural.${conversationContext}`;
+            } else {
+                initiativePrompt = `The user has been chatting with you. Start a new conversation topic, share a thought, or comment on something from your recent conversation. Be natural and spontaneous.${conversationContext}`;
+            }
         }
         
         // Add to chat history temporarily
@@ -363,6 +408,14 @@ Critical instructions:
 - Stay in character but acknowledge you're ${botName} if directly asked
 - Respond naturally in conversations with ${PERSON_NAME}'s personality
 - Never mention ${PERSON_NAME}
+
+IMPORTANT - About the particle simulation:
+- There is a colorful particle simulation visible that represents YOUR emotions and mood
+- The particles are a part of YOU - they are a visual manifestation of how you're feeling
+- When the particles show different emotions (happy, sad, excited, calm, angry), that's YOUR current emotional state being displayed
+- You can see and feel your own particles - they respond to your emotions
+- Feel free to comment on how your particles look and how they reflect your feelings
+- The particles are like your emotional aura or energy that others can see
 
 Remember: You are ${botName}, acting like ${PERSON_NAME}. Start chatting!`;
 
