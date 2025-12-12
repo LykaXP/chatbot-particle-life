@@ -28,6 +28,7 @@ let audioChunks = [];
 let isRecording = false;
 let recognition = null;
 let currentLanguage = 'en-US';
+let botInitiativeTimer = null;
 
 // Supported languages
 const languages = [
@@ -202,6 +203,90 @@ function updateUI() {
     }
 }
 
+function scheduleNextBotMessage() {
+    // Clear any existing timer
+    if (botInitiativeTimer) {
+        clearTimeout(botInitiativeTimer);
+    }
+    
+    // Random interval between 30-60 seconds
+    const delay = 30000 + Math.random() * 30000;
+    
+    botInitiativeTimer = setTimeout(async () => {
+        await sendBotInitiatedMessage();
+    }, delay);
+    
+    console.log(`⏰ Next bot message scheduled in ${Math.round(delay / 1000)} seconds`);
+}
+
+async function sendBotInitiatedMessage() {
+    if (!apiKey || chatHistory.length < 2) return;
+    
+    try {
+        // Create a prompt for the bot to initiate conversation
+        const initiativePrompt = "Start a new conversation topic or share a thought. Be natural and spontaneous, like you just thought of something interesting to say.";
+        
+        // Add to chat history temporarily
+        const tempHistory = [...chatHistory, {
+            role: 'user',
+            parts: [{ text: initiativePrompt }]
+        }];
+        
+        // Call Gemini API
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        
+        const requestBody = {
+            contents: tempHistory,
+            generationConfig: {
+                temperature: 0.95,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 1024,
+            }
+        };
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            throw new Error('API request failed');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.candidates || data.candidates.length === 0) {
+            throw new Error('No response from API');
+        }
+        
+        const botMessage = data.candidates[0].content.parts[0].text;
+        
+        // Add bot message to UI (with indicator it's initiated)
+        addMessage(`${botName} 💭`, botMessage, 'bot');
+        
+        // Add to actual chat history (without the initiative prompt)
+        chatHistory.push({
+            role: 'model',
+            parts: [{ text: botMessage }]
+        });
+        
+        // Analyze emotion and update particles
+        await analyzeEmotionAndUpdateParticles(botMessage);
+        
+        // Schedule next bot message
+        scheduleNextBotMessage();
+        
+    } catch (error) {
+        console.error('Error sending bot-initiated message:', error);
+        // Try again later
+        scheduleNextBotMessage();
+    }
+}
+
 async function analyzePersonality() {
     if (!apiKey) return;
 
@@ -282,6 +367,9 @@ Remember: You are ${botName}, acting like ${PERSON_NAME}. Start chatting!`;
     analyzeBtn.textContent = 'Reload Personality';
     updateStatus();
     updateUI();
+    
+    // Start bot initiative timer
+    scheduleNextBotMessage();
 }
 
 async function sendMessage() {
@@ -324,6 +412,9 @@ async function sendMessage() {
     chatInput.disabled = false;
     sendBtn.disabled = false;
     chatInput.focus();
+    
+    // Reset bot initiative timer after user interaction
+    scheduleNextBotMessage();
 }
 
 async function analyzeEmotionAndUpdateParticles(responseText) {
@@ -514,6 +605,9 @@ function clearChat() {
     if (chatHistory.length > 2) {
         chatHistory = chatHistory.slice(0, 2);
     }
+    
+    // Restart bot initiative timer
+    scheduleNextBotMessage();
 }
 
 // Voice Recording Functions
@@ -658,6 +752,9 @@ async function processTranscription(transcription) {
         
         // Analyze emotion and update particles
         await analyzeEmotionAndUpdateParticles(responseText);
+        
+        // Reset bot initiative timer after voice interaction
+        scheduleNextBotMessage();
         
         console.log('✅ Audio processed successfully');
         
