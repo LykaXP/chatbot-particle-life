@@ -321,38 +321,112 @@ async function sendMessage() {
 
 async function analyzeEmotionAndUpdateParticles(responseText) {
     try {
-        const emotionPrompt = `Analyze the emotional tone of this message and respond with ONLY a JSON object (no markdown, no extra text) in this exact format:
-{"emotion": "happy/sad/angry/excited/calm/neutral", "intensity": 0.0-1.0}
-
-Message: "${responseText}"
-
-Respond with only the JSON object, nothing else.`;
-
-        const emotionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: emotionPrompt }] }],
-                generationConfig: { temperature: 0.3, maxOutputTokens: 100 }
-            })
-        });
-
-        if (emotionResponse.ok) {
-            const emotionData = await emotionResponse.json();
-            let emotionJson = emotionData.candidates[0].content.parts[0].text.trim();
-            
-            // Remove markdown code blocks if present
-            emotionJson = emotionJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            
-            const emotion = JSON.parse(emotionJson);
-            
-            // Update particle simulation based on emotion
-            if (typeof updateParticleEmotion === 'function') {
-                updateParticleEmotion(emotion.emotion, emotion.intensity);
+        // Improved keyword-based emotion detection
+        let detectedEmotion = 'neutral';
+        let intensity = 0.5;
+        
+        const text = responseText.toLowerCase();
+        
+        // Score-based detection for more nuanced results
+        const emotionScores = {
+            excited: 0,
+            happy: 0,
+            sad: 0,
+            angry: 0,
+            calm: 0
+        };
+        
+        // Excited indicators (strong positive)
+        if (text.match(/\b(excit|amazing|wonderful|fantastic|incredible|awesome)\b/)) emotionScores.excited += 2;
+        if (text.match(/!!+/)) emotionScores.excited += 1;
+        
+        // Happy indicators (mild positive)
+        if (text.match(/\b(happy|joy|glad|pleased|smile|laugh|nice|good|thank)\b/)) emotionScores.happy += 2;
+        if (text.match(/:\)|😊|😄/)) emotionScores.happy += 1;
+        
+        // Sad indicators
+        if (text.match(/\b(sad|sorry|unfortunate|regret|disappoint|miss)\b/)) emotionScores.sad += 2;
+        if (text.match(/:\(|😢|😞/)) emotionScores.sad += 1;
+        
+        // Angry indicators
+        if (text.match(/\b(angry|frustrat|annoy|upset|mad)\b/)) emotionScores.angry += 2;
+        
+        // Calm indicators
+        if (text.match(/\b(calm|relax|peace|serene|tranquil|gentle|quiet)\b/)) emotionScores.calm += 2;
+        
+        // Find highest score for fallback
+        let maxScore = 0;
+        for (const [emotion, score] of Object.entries(emotionScores)) {
+            if (score > maxScore) {
+                maxScore = score;
+                detectedEmotion = emotion;
+                intensity = Math.min(0.5 + (score * 0.15), 1.0);
             }
-            
-            console.log('Emotion detected:', emotion);
         }
+        
+        // Use API to detect emotion from the chatbot's message
+        try {
+            const emotionAnalysisPrompt = `You must respond with ONLY a JSON object, no other text.
+Analyze the emotion in this message and return: {"emotion": "happy", "intensity": 0.7}
+
+Emotion must be one of: happy, sad, angry, excited, calm, neutral
+Intensity must be 0.0 to 1.0
+
+Message to analyze: "${responseText}"
+
+JSON response:`;
+
+            const emotionResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemma-3-4b-it:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts: [{ text: emotionAnalysisPrompt }] }],
+                    generationConfig: { 
+                        temperature: 0.2,
+                        maxOutputTokens: 100,
+                        candidateCount: 1
+                    }
+                })
+            });
+
+            if (emotionResponse.ok) {
+                const emotionData = await emotionResponse.json();
+                
+                if (emotionData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    let emotionJson = emotionData.candidates[0].content.parts[0].text.trim();
+                    
+                    // Clean up the response
+                    emotionJson = emotionJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    
+                    // Extract JSON object
+                    const jsonMatch = emotionJson.match(/\{[^}]*"emotion"[^}]*"intensity"[^}]*\}/);
+                    if (jsonMatch) {
+                        const emotion = JSON.parse(jsonMatch[0]);
+                        if (emotion.emotion && typeof emotion.intensity === 'number') {
+                            detectedEmotion = emotion.emotion;
+                            intensity = emotion.intensity;
+                            console.log('✓ Using API emotion analysis');
+                        }
+                    } else {
+                        console.log('⚠ API response invalid, using keyword detection');
+                    }
+                } else {
+                    console.log('⚠ API response missing text, using keyword detection');
+                }
+            } else {
+                console.log('⚠ API call failed, using keyword detection');
+            }
+        } catch (apiError) {
+            console.log('⚠ API error, using keyword detection:', apiError.message);
+        }
+        
+        // Update particle simulation with detected emotion
+        if (typeof updateParticleEmotion === 'function') {
+            updateParticleEmotion(detectedEmotion, intensity);
+        }
+        
+        console.log('Emotion detected:', detectedEmotion, intensity);
+        
     } catch (error) {
         console.error('Error analyzing emotion:', error);
     }
