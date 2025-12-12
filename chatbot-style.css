@@ -296,6 +296,28 @@ button:disabled {
     border-color: #007bff;
 }
 
+.lang-btn {
+    background: #6c757d;
+    color: white;
+    padding: 10px 12px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.3s;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.lang-btn:hover:not(:disabled) {
+    background: #5a6268;
+}
+
+.lang-btn svg {
+    flex-shrink: 0;
+}
+
 .voice-btn {
     background: #28a745;
     color: white;

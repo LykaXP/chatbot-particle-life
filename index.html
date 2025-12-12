@@ -50,6 +50,14 @@
 
                         <div class="chat-input-container">
                             <textarea id="chatInput" placeholder="Type your message..." rows="2" disabled></textarea>
+                            <button id="langBtn" class="lang-btn" disabled title="Change language">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                </svg>
+                                <span id="currentLang">EN</span>
+                            </button>
                             <button id="voiceBtn" class="voice-btn" disabled title="Voice input (V)">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>

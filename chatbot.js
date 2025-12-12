@@ -18,6 +18,8 @@ const chatMessages = document.getElementById('chatMessages');
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const voiceBtn = document.getElementById('voiceBtn');
+const langBtn = document.getElementById('langBtn');
+const currentLangSpan = document.getElementById('currentLang');
 const clearBtn = document.getElementById('clearBtn');
 const chatStatus = document.getElementById('chatStatus');
 const recordingIndicator = document.getElementById('recordingIndicator');
@@ -27,6 +29,15 @@ let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let recognition = null;
+let currentLanguage = 'en-US';
+
+// Supported languages
+const languages = [
+    { code: 'en-US', name: 'English', short: 'EN' },
+    { code: 'fr-FR', name: 'French', short: 'FR' },
+    { code: 'zh-CN', name: 'Chinese', short: 'ZH' },
+    { code: 'ja-JP', name: 'Japanese', short: 'JA' },
+];
 
 // Event Listeners
 uploadBtn.addEventListener('click', () => fileInput.click());
@@ -38,6 +49,7 @@ uploadArea.addEventListener('drop', handleDrop);
 analyzeBtn.addEventListener('click', analyzePersonality);
 sendBtn.addEventListener('click', sendMessage);
 voiceBtn.addEventListener('click', toggleVoiceRecording);
+if (langBtn) langBtn.addEventListener('click', toggleLanguage);
 clearBtn.addEventListener('click', clearChat);
 apiKeyInput.addEventListener('input', () => {
     apiKey = apiKeyInput.value.trim();
@@ -184,12 +196,14 @@ function updateUI() {
         chatInput.disabled = false;
         sendBtn.disabled = false;
         voiceBtn.disabled = false;
+        if (langBtn) langBtn.disabled = false;
         chatStatus.textContent = `Chatting with ${botName}`;
         chatStatus.classList.add('ready');
     } else {
         chatInput.disabled = true;
         sendBtn.disabled = true;
         voiceBtn.disabled = true;
+        if (langBtn) langBtn.disabled = true;
         chatStatus.textContent = 'Not Ready';
         chatStatus.classList.remove('ready');
     }
@@ -510,6 +524,23 @@ function clearChat() {
 }
 
 // Voice Recording Functions
+function toggleLanguage() {
+    // Find current language index
+    const currentIndex = languages.findIndex(lang => lang.code === currentLanguage);
+    
+    // Move to next language (loop back to start if at end)
+    const nextIndex = (currentIndex + 1) % languages.length;
+    currentLanguage = languages[nextIndex].code;
+    
+    // Update UI
+    currentLangSpan.textContent = languages[nextIndex].short;
+    
+    // Show notification
+    addSystemMessage(`🌐 Language changed to ${languages[nextIndex].name}`);
+    
+    console.log('Language changed to:', currentLanguage);
+}
+
 async function toggleVoiceRecording() {
     if (isRecording) {
         stopRecording();
@@ -531,7 +562,7 @@ async function startRecording() {
         recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
-        recognition.lang = 'en-US'; // Change this for other languages
+        recognition.lang = currentLanguage;
         
         recognition.onstart = () => {
             isRecording = true;
